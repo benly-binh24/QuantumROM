@@ -113,7 +113,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           REPO="benly-binh24/QuantumROM"
-          BRANCH="Devices"
+          BRANCH="main"
 
           source "$(pwd)/scripts/git_utils.sh"
 
