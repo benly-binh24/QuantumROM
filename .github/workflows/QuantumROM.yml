@@ -1,298 +1,112 @@
-name: QuantumROM Tools.
+name: QuantumROM Tools Sixteen.
 
 on:
   workflow_dispatch:
     inputs:
       STOCK_DEVICE:
-        description: "Your own device model or None"
+        description: "STOCK_DEVICE_MODEL or None"
         required: true
-        default: "SM-A225F"
-
+        default: "SM-N985F"
       USE_UI_8_TETHERING_APEX:
         description: "Set True if your kernel BPF version is 5.4 (lower than 5.10)."
         required: true
         default: "False"
-
       TARGET_DEVICE:
         description: "TARGET_DEVICE_MODEL."
         required: true
         default: "SM-A346E"
-
-      TARGET_DEVICE_CSC_OR_DOWNLOAD_LINK:
-        description: "Input target device CSC code or direct download link."
+      TARGET_DEVICE_CSC:
+        description: "TARGET_DEVICE_CSC."
         required: true
-        default: "BKD"
-
+        default: "XXV"
+      TARGET_DEVICE_IMEI:
+        description: "TARGET_DEVICE_IMEI."
+        required: true
+        default: "353435774197736"
       TARGET_FW_VERSION:
-        description: "Specific Samsung firmware version (PDA/CSC/MODEM) OR (AP/CSC/CP)"
+        description: "Any specific firmware release version."
         required: false
-
+        default: ""
       OUTPUT_FILESYSTEM:
-        description: "Output filesystem. e.g erofs / ext4 / f2fs"
+        description: "OUTPUT_FILESYSTEM. e.g erofs / ext4 / f2fs"
         required: true
         default: "erofs"
-
       COMPRESS_IMG_TO_XZ:
-        description: "Compress img to xz (True/False)"
+        description: "Compress IMG to XZ (True/False)"
         required: true
         default: "False"
 
-      DEBLOAT_ROM:
-        description: "Debloat downloaded rom (True/False)"
-        required: true
-        default: "True"
-
-      ADD_CHINA_SMART_MANAGER:
-        description: "Add china smart manager (True/False)"
-        required: true
-        default: "True"
-
-      ADD_SAMSUNG_FLAGSHIP_APPS:
-        description: "Add samsung flagship apps (True/False)"
-        required: true
-        default: "True"
-
-      ADD_CUSTOM_FEATURES:
-        description: "Add samsung custom features (True/False)"
-        required: true
-        default: "True"
-
-      PATCH_FLAG_SECURE:
-        description: "Bypass screenshot and screen record detection (True/False)"
-        required: true
-        default: "True"
-
-      PATCH_SECURE_FOLDER:
-        description: "Patch samsung secure folder (True/False)"
-        required: true
-        default: "True"
-
-      PATCH_BLUETOOTH_LIBRARY:
-        description: "Patch bluetooth library (True/False)"
-        required: true
-        default: "True"
-
-
 jobs:
   build:
-    name: Start QuantumROM Tools
-    runs-on: ubuntu-22.04
+    name: Start QuantumROM Tools Sixteen.
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout repository.
         uses: actions/checkout@v4
 
-      - name: Set variables
+      - name: Validate STOCK_DEVICE
         run: |
-          echo "FIRM_DIR=$(pwd)/FW" | tee -a "$GITHUB_ENV"
-          echo "OUT_DIR=$(pwd)/OUT" | tee -a "$GITHUB_ENV"
-          echo "WORK_DIR=$(pwd)/WORK" | tee -a "$GITHUB_ENV"
-          echo "DEVICES_DIR=$(pwd)/QuantumROM/Devices" | tee -a "$GITHUB_ENV"
-          echo "APKTOOL=$(pwd)/bin/java/apktool.jar" | tee -a "$GITHUB_ENV"
-          echo "VNDKS_COLLECTION=$(pwd)/QuantumROM/vndks" | tee -a "$GITHUB_ENV"
-
-          echo "STOCK_DEVICE=${{ inputs.STOCK_DEVICE }}" | tee -a "$GITHUB_ENV"
-          echo "TARGET_DEVICE=${{ inputs.TARGET_DEVICE }}" | tee -a "$GITHUB_ENV"
-          echo "TARGET_DEVICE_CSC_OR_DOWNLOAD_LINK=${{ inputs.TARGET_DEVICE_CSC_OR_DOWNLOAD_LINK }}" | tee -a "$GITHUB_ENV"
-          echo "TARGET_FW_VERSION=${{ inputs.TARGET_FW_VERSION }}" | tee -a "$GITHUB_ENV"
-
-          echo "DEBLOAT_ROM=${{ inputs.DEBLOAT_ROM }}" | tee -a "$GITHUB_ENV"
-          echo "USE_UI_8_TETHERING_APEX=${{ inputs.USE_UI_8_TETHERING_APEX }}" | tee -a "$GITHUB_ENV"
-          echo "ADD_CHINA_SMART_MANAGER=${{ inputs.ADD_CHINA_SMART_MANAGER }}" | tee -a "$GITHUB_ENV"
-          echo "ADD_SAMSUNG_FLAGSHIP_APPS=${{ inputs.ADD_SAMSUNG_FLAGSHIP_APPS }}" | tee -a "$GITHUB_ENV"
-          echo "ADD_CUSTOM_FEATURES=${{ inputs.ADD_CUSTOM_FEATURES }}" | tee -a "$GITHUB_ENV"
-          echo "PATCH_FLAG_SECURE=${{ inputs.PATCH_FLAG_SECURE }}" | tee -a "$GITHUB_ENV"
-          echo "PATCH_SECURE_FOLDER=${{ inputs.PATCH_SECURE_FOLDER }}" | tee -a "$GITHUB_ENV"
-          echo "PATCH_BLUETOOTH_LIBRARY=${{ inputs.PATCH_BLUETOOTH_LIBRARY }}" | tee -a "$GITHUB_ENV"
-
-          echo "OUTPUT_FILESYSTEM=${{ inputs.OUTPUT_FILESYSTEM }}" | tee -a "$GITHUB_ENV"
-          echo "COMPRESS_IMG_TO_XZ=${{ inputs.COMPRESS_IMG_TO_XZ }}" | tee -a "$GITHUB_ENV"
- 
-      - name: Validate STOCK_DEVICE - ${{ inputs.STOCK_DEVICE }}
-        run: |
-          REPO="SN-Abdullah-Al-Noman/QuantumROM"
-          BRANCH="Devices"
-
-          source "$(pwd)/scripts/git_utils.sh"
-
-          if [ "$STOCK_DEVICE" != "None" ]; then
-              if ! curl -fsSL -H "Accept: application/vnd.github+json" \
-                  "https://api.github.com/repos/$REPO/contents/$STOCK_DEVICE?ref=$BRANCH" >/dev/null; then
-
-                echo "❌ Unsupported: Device '$STOCK_DEVICE' not found in $REPO/$BRANCH"
-                exit 1
-              fi
-
-              echo "✅ Device supported: $STOCK_DEVICE"
-              GIT_SPARSE_DOWNLOAD "SN-Abdullah-Al-Noman/QuantumROM" "Devices" "$STOCK_DEVICE" \
-                  "$(pwd)/QuantumROM/Devices/$STOCK_DEVICE"
-          else
-              echo "ℹ️ STOCK_DEVICE is set to None."
+          STOCK_DEVICE="${{ github.event.inputs.STOCK_DEVICE }}"
+          DEVICE_PATH="QuantumROM/Devices/$STOCK_DEVICE"
+          if [ "$STOCK_DEVICE" != "None" ] && [ ! -d "$DEVICE_PATH" ]; then
+            echo "❌ $STOCK_DEVICE is not supported with this tool."
+            exit 1
           fi
 
-      - name: Check disk space
-        id: disk
-        run: |
-          FREE_GB=$(df -BG "$GITHUB_WORKSPACE" | awk 'NR==2 {gsub("G","",$4); print $4}')
-          echo "Free space: ${FREE_GB} GB"
-          echo "enough=$([ "$FREE_GB" -ge 50 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
-
       - name: Remove unnecessary files.
-        if: steps.disk.outputs.enough == 'false'
         uses: rokibhasansagar/slimhub_actions@v25.42.5
 
       - name: Install Dependencies.
         run: |
-          sudo apt update
-          sudo apt install -y p7zip-full lz4 liblz4-1 liblz4-dev libzstd1 libzstd-dev build-essential android-sdk-libsparse-utils \
-              f2fs-tools fuse2fs fuse e2fsprogs python3 python3-pip zipalign unzip openjdk-21-jdk jq perl xxd kmod erofs-utils curl wget
-          sudo modprobe f2fs || true
-          git clone https://github.com/SN-Abdullah-Al-Noman/GoFileDownloader.git
-          cd GoFileDownloader
-          pip install -r requirements.txt
+          sudo apt install -y p7zip-full lz4 liblz4-1 liblz4-dev libzstd1 libzstd-dev build-essential android-sdk-libsparse-utils f2fs-tools fuse2fs fuse e2fsprogs python3 python3-pip zipalign unzip openjdk-17-jdk jq perl xxd linux-modules-extra-$(uname -r) kmod
+          sudo modprobe f2fs
+          pip3 install git+https://github.com/SN-Abdullah-Al-Noman/samloader.git --break-system-packages
           mkdir -p FW WORK OUT
 
-      - name: Download firmware ▶️ ${{ inputs.TARGET_DEVICE }} - ${{ inputs.TARGET_DEVICE_CSC_OR_DOWNLOAD_LINK }}
+      - name: Download firmware ▶️ ${{ github.event.inputs.TARGET_DEVICE }} - ${{ github.event.inputs.TARGET_DEVICE_CSC }}
         run: |
-          source "$(pwd)/scripts/QuantumRom.sh"
-          DOWNLOAD_FIRMWARE "$TARGET_DEVICE" "$TARGET_DEVICE_CSC_OR_DOWNLOAD_LINK" "$FIRM_DIR" "$TARGET_FW_VERSION"
+          source scripts/QuantumRom.sh
+          DOWNLOAD_FIRMWARE "${{ github.event.inputs.TARGET_DEVICE }}" "${{ github.event.inputs.TARGET_DEVICE_CSC }}" "${{ github.event.inputs.TARGET_DEVICE_IMEI }}" "FW" "${{ github.event.inputs.TARGET_FW_VERSION }}"
 
-      - name: Extract firmware
+      - name: Start Rom Build For ${{ github.event.inputs.STOCK_DEVICE }}
         run: |
-          source "$(pwd)/scripts/QuantumRom.sh"
-          EXTRACT_FIRMWARE "$FIRM_DIR/$TARGET_DEVICE"
+          sudo bash sixteen.sh \
+            "${{ github.event.inputs.STOCK_DEVICE }}" \
+            "${{ github.event.inputs.USE_UI_8_TETHERING_APEX }}" \
+            "${{ github.event.inputs.TARGET_DEVICE }}" \
+            "${{ github.event.inputs.TARGET_DEVICE_CSC }}" \
+            "${{ github.event.inputs.TARGET_DEVICE_IMEI }}" \
+            "${{ github.event.inputs.OUTPUT_FILESYSTEM }}"
 
-      - name: Extract super.img
+      - name: Compress all .img & make zip file before upload.
         run: |
-          source "$(pwd)/scripts/QuantumRom.sh"
-          EXTRACT_SUPER_IMG "$FIRM_DIR/$TARGET_DEVICE"
-
-      - name: Extract firmware img
-        run: |
-          source "$(pwd)/scripts/QuantumRom.sh"
-          EXTRACT_FIRMWARE_IMG "$FIRM_DIR/$TARGET_DEVICE" "all"
-
-      - name: Decode odm, omc
-        run: |
-          source "$(pwd)/scripts/QuantumRom.sh"
-          DECODE_OMC "$FIRM_DIR/$TARGET_DEVICE" "$OUT_DIR"
-
-      - name: Debloat Rom - ${{ inputs.DEBLOAT_ROM }}
-        run: |
-          source "$(pwd)/scripts/debloat.sh"
-          source "$(pwd)/scripts/QuantumRom.sh"
-
-          if [ "$DEBLOAT_ROM" = "True" ]; then
-              DEBLOAT "$FIRM_DIR/$TARGET_DEVICE"
-          fi
-
-      - name: Apply stock device configuration
-        run: |
-          source "$(pwd)/scripts/debloat.sh"
-          source "$(pwd)/scripts/QuantumRom.sh"
-
-          if [ "$STOCK_DEVICE" != "None" ]; then
-              APPLY_STOCK_CONFIG "$STOCK_DEVICE" "$FIRM_DIR/$TARGET_DEVICE"
-              DECOMPILE "$APKTOOL" "$FIRM_DIR/$TARGET_DEVICE/system/system/framework" "$FIRM_DIR/$TARGET_DEVICE/system/system/framework/ssrm.jar" "$WORK_DIR"
-              PATCH_SSRM "$WORK_DIR/ssrm"
-              RECOMPILE "$APKTOOL" "$FIRM_DIR/$TARGET_DEVICE/system/system/framework" "$WORK_DIR/ssrm" "$WORK_DIR"
-              mv -f "$WORK_DIR/ssrm.jar" "$FIRM_DIR/$TARGET_DEVICE/system/system/framework/"
-          fi
-
-      - name: Add china smart manager - ${{ inputs.ADD_CHINA_SMART_MANAGER }}
-        run: |
-          source "$(pwd)/scripts/QuantumRom.sh"
-
-          if [ "$ADD_CHINA_SMART_MANAGER" = "True" ]; then
-              ADD_CHINA_SMART_MANAGER "$FIRM_DIR/$TARGET_DEVICE"
-          fi
-
-      - name: Add samsung flagship apps - ${{ inputs.ADD_SAMSUNG_FLAGSHIP_APPS }}
-        run: |
-          source "$(pwd)/scripts/QuantumRom.sh"
-
-          if [ "$ADD_SAMSUNG_FLAGSHIP_APPS" = "True" ]; then
-              ADD_SAMSUNG_FLAGSHIP_APPS "$FIRM_DIR/$TARGET_DEVICE"
-          fi
-
-      - name: Add custom features - ${{ inputs.ADD_CUSTOM_FEATURES }}
-        run: |
-          source "$(pwd)/scripts/QuantumRom.sh"
-
-          if [ "$ADD_CUSTOM_FEATURES" = "True" ]; then
-              APPLY_CUSTOM_FEATURES "$FIRM_DIR/$TARGET_DEVICE"
-          fi
-
-      - name: Patch flag secure and secure folder - ${{ inputs.PATCH_FLAG_SECURE }} - ${{ inputs.PATCH_SECURE_FOLDER }}
-        run: |
-          source "$(pwd)/scripts/QuantumRom.sh"
-
-          if [ "$PATCH_FLAG_SECURE" = "True" ] || [ "$PATCH_SECURE_FOLDER" = "True" ]; then
-              INSTALL_FRAMEWORK "$APKTOOL" "$FIRM_DIR/$TARGET_DEVICE/system/system/framework/framework-res.apk"
-              DECOMPILE "$APKTOOL" "$FIRM_DIR/$TARGET_DEVICE/system/system/framework" "$FIRM_DIR/$TARGET_DEVICE/system/system/framework/services.jar" "$WORK_DIR"
-          fi
-
-          if [ "$PATCH_FLAG_SECURE" = "True" ]; then
-              PATCH_FLAG_SECURE "$FIRM_DIR/$TARGET_DEVICE" "$WORK_DIR/services"
-          fi
-
-          if [ "$PATCH_SECURE_FOLDER" = "True" ]; then
-              PATCH_SECURE_FOLDER "$FIRM_DIR/$TARGET_DEVICE" "$WORK_DIR/services"
-          fi
-
-          if [ -f "$WORK_DIR/services.jar" ]; then
-              mv -f "$WORK_DIR/services.jar" "$FIRM_DIR/$TARGET_DEVICE/system/system/framework/"
-              echo "✅ services.jar moved to rom."
-          fi
-
-      - name: Patch bluetooth library- ${{ inputs.PATCH_BLUETOOTH_LIBRARY }}
-        run: |
-          source "$(pwd)/scripts/QuantumRom.sh"
-
-          if [ "$PATCH_BLUETOOTH_LIBRARY" = "True" ]; then
-              PATCH_BT_LIB "$FIRM_DIR/$TARGET_DEVICE" "$WORK_DIR"
-          fi
-
-      - name: Apply others features and patch
-        run: |
-          source "$(pwd)/scripts/QuantumRom.sh"
-          PATCH_SELINUX "$FIRM_DIR/$TARGET_DEVICE"
-          DISABLE_SECURITY "$FIRM_DIR/$TARGET_DEVICE"
-
-      - name: Build img - ${{ inputs.OUTPUT_FILESYSTEM }}
-        run: |
-          source "$(pwd)/scripts/QuantumRom.sh"
-          BUILD_IMG "$FIRM_DIR/$TARGET_DEVICE" "all" "$OUTPUT_FILESYSTEM" "$OUT_DIR"
-
-      - name: Compress all .img & make zip file before upload - - ${{ inputs.COMPRESS_IMG_TO_XZ }}
-        run: |
-          echo "BUILD_TIME=$(TZ='Asia/Dhaka' date '+%Y-%m-%d %I:%M:%S %p UTC+6')" | tee -a "$GITHUB_ENV"
-          ZIP_NAME="${{ inputs.TARGET_DEVICE }}_Port_For_${{ inputs.STOCK_DEVICE }}.zip"
+          echo "BUILD_TIME=$(TZ='Asia/Dhaka' date '+%Y-%m-%d %I:%M:%S %p UTC+6')" >> $GITHUB_ENV
+          OUT_DIR="$(pwd)/OUT"
+          ZIP_NAME="${{ github.event.inputs.TARGET_DEVICE }}_Port_For_${{ github.event.inputs.STOCK_DEVICE }}.zip"
           ZIP_PATH="$OUT_DIR/$ZIP_NAME"
 
-          if [ "$COMPRESS_IMG_TO_XZ" = "True" ]; then
-              echo "Compressing all .img files to .xz (level 9)..."
-              for img in "$OUT_DIR"/*.img; do
-                  [ -f "$img" ] || continue
-                  echo "Compressing $img"
-                  xz -9 -T0 "$img"
-              done
+          if [ "${{ github.event.inputs.COMPRESS_IMG_TO_XZ }}" = "True" ]; then
+            echo "Compressing all .img files to .xz (level 9)..."
+            for img in "$OUT_DIR"/*.img; do
+              [ -f "$img" ] || continue
+              echo "Compressing $img"
+              sudo xz -9 -T0 "$img"
+            done
+            sudo rm -f "$OUT_DIR"/*.img
           fi
 
           echo "Creating zip: $ZIP_NAME"
           7z a -tzip "$ZIP_PATH" "$OUT_DIR"/* -mx=5
-          echo "ZIP_PATH=$ZIP_PATH" | tee -a "$GITHUB_ENV"
+          echo "ZIP_PATH=$ZIP_PATH" >> $GITHUB_ENV
 
       - name: Upload file in GoFile & Create Release.
         env:
           GIT_TOKEN: ${{ secrets.GIT_TOKEN }}
+          STOCK_DEVICE: ${{ github.event.inputs.STOCK_DEVICE }}
+          TARGET_DEVICE: ${{ github.event.inputs.TARGET_DEVICE }}
+          OUTPUT_FILESYSTEM: ${{ github.event.inputs.OUTPUT_FILESYSTEM }}
+          COMPRESS_IMG_TO_XZ: ${{ github.event.inputs.COMPRESS_IMG_TO_XZ }}
+          USE_UI_8_TETHERING_APEX: ${{ github.event.inputs.USE_UI_8_TETHERING_APEX }}
         run: |
-          source "$(pwd)/scripts/QuantumRom.sh"
-          export ANDROID_VERSION=$(GET_PROP "$FIRM_DIR/$TARGET_DEVICE" "system" "ro.system.build.version.release")
-          ONEUI_VERSION=$(GET_PROP "$FIRM_DIR/$TARGET_DEVICE" "system" "ro.build.version.oneui")
-          export ONEUI_VERSION=$(echo "$ONEUI_VERSION" | sed -E 's/^([0-9])0+$/\1.0/; s/^([0-9])([0-9]*)0+$/\1.\2/')
-          export BUILD_VERSION=$(GET_PROP "$FIRM_DIR/$TARGET_DEVICE" "system" "ro.build.version.incremental")
-          export SDK_VERSION=$(GET_PROP "$FIRM_DIR/$TARGET_DEVICE" "system" "ro.system.build.version.sdk")
-          export SECURITY_PATCH=$(GET_PROP "$FIRM_DIR/$TARGET_DEVICE" "system" "ro.build.version.security_patch")
-          export CPU_ABILIST=$(GET_PROP "$FIRM_DIR/$TARGET_DEVICE" "system" "ro.system.product.cpu.abilist")
-          bash release.sh
+           bash release.sh
