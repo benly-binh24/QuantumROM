@@ -1256,34 +1256,27 @@ FIX_VNDK() {
         rm -rf "${TARGET_ROM_SYSTEM_EXT_DIR}/apex/"com.android.vndk.v*.apex
 
         local VNDK_ZIP="Android-${ANDROID_VERSION}_SDK-${SDK}.zip"
-        local GOFILE_ID="3XWArQXc"
+        local DIRECT_VNDK_URL="https://github.com/SN-Abdullah-Al-Noman/QuantumROM/releases/download/VNDKS/${VNDK_ZIP}"
         local VNDK_LOCAL_PATH="${QT_DIR}/QuantumROM/vndks/${VNDK_ZIP}"
         local VNDK_EXTRACT_DIR="${QT_DIR}/QuantumROM/vndks/Android-${ANDROID_VERSION}_SDK-${SDK}"
 
         mkdir -p "${QT_DIR}/QuantumROM/vndks"
 
-        # --- Kiểm tra nếu chưa có file local thì tiến hành tải từ GoFile ---
+        # --- Tải trực tiếp bằng wget nếu chưa có file local ---
         if [ ! -f "$VNDK_LOCAL_PATH" ]; then
-            echo "- Fetching $VNDK_ZIP from GoFile ($GOFILE_ID)..."
-
-            # 1. Lấy guest token từ Gofile API
-            local GF_TOKEN=$(curl -s -X POST https://api.gofile.io/accounts | jq -r '.data.token')
-
-            # 2. Lấy direct download URL
-            local GF_FILE_URL=$(curl -s -H "Authorization: Bearer $GF_TOKEN" "https://api.gofile.io/contents/$GOFILE_ID?wt=4719da05bb" | jq -r '.data.children[] | select(.type=="file") | .link')
-
-            if [ -n "$GF_FILE_URL" ] && [ "$GF_FILE_URL" != "null" ]; then
-                echo "- Downloading file from GoFile..."
-                curl -L -H "Authorization: Bearer $GF_TOKEN" -o "$VNDK_LOCAL_PATH" "$GF_FILE_URL"
+            echo "- Downloading $VNDK_ZIP directly from GitHub Release..."
+            if wget -q --show-progress --no-check-certificate -O "$VNDK_LOCAL_PATH" "$DIRECT_VNDK_URL"; then
+                echo "- Download completed successfully."
             else
-                echo "- ERROR: Failed to get direct link from GoFile ID: $GOFILE_ID"
+                echo "- ERROR: Failed to download $VNDK_ZIP from $DIRECT_VNDK_URL"
+                rm -f "$VNDK_LOCAL_PATH"
                 return 1
             fi
         else
             echo "- Found local file: $VNDK_LOCAL_PATH"
         fi
 
-        # --- Tiến hành giải nén và copy vào ROM ---
+        # --- Giải nén và chép thư viện VNDK vào ROM ---
         if [ -f "$VNDK_LOCAL_PATH" ]; then
             if 7z x -aoa -y -bd -bso0 -bse0 -bsp1 "$VNDK_LOCAL_PATH" -o"$VNDK_EXTRACT_DIR"; then
                 if [ -d "${VNDK_EXTRACT_DIR}/${STOCK_VNDK_VERSION}" ]; then
@@ -1297,8 +1290,7 @@ FIX_VNDK() {
                         echo "- Dual vndk 30 and 31 copied successfully"
                     fi
                 else
-                    echo "- ERROR: Extracted VNDK directory not found:"
-                    echo "  ${VNDK_EXTRACT_DIR}/${STOCK_VNDK_VERSION}"
+                    echo "- ERROR: Extracted VNDK directory not found: ${VNDK_EXTRACT_DIR}/${STOCK_VNDK_VERSION}"
                     return 1
                 fi
             else
