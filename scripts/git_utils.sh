@@ -1,14 +1,14 @@
 #!/bin/bash
 
 GIT_SPARSE_DOWNLOAD() {
-    # Tự động lấy GITHUB_REPOSITORY nếu $1 bị trống
+    # Tự động ưu tiên $1, nếu trống sẽ lấy Repo của bạn: benly-binh24/QuantumROM
     local REPO="${1:-benly-binh24/QuantumROM}"
     local BRANCH="$2"
     local FOLDER="$3"
     local OUT_DIR="$4"
 
-    if [ -z "$REPO" ] || [ -z "$BRANCH" ] || [ -z "$FOLDER" ] || [ -z "$OUT_DIR" ]; then
-        echo "Usage: GIT_SPARSE_DOWNLOAD <REPO> <BRANCH> <FOLDER> <OUT_DIR>"
+    if [ -z "$BRANCH" ] || [ -z "$FOLDER" ] || [ -z "$OUT_DIR" ]; then
+        echo "Usage: GIT_SPARSE_DOWNLOAD [REPO] <BRANCH> <FOLDER> <OUT_DIR>"
         return 1
     fi
 
@@ -31,17 +31,20 @@ GIT_SPARSE_DOWNLOAD() {
         return 1
     }
 
-    echo "- Temporary directory: $TMP_DIR"
-    echo " "
+    # Thêm cấu hình Token tự động nếu chạy trên GitHub Actions
+    local CLONE_URL="https://github.com/$REPO.git"
+    if [ -n "$GITHUB_TOKEN" ]; then
+        CLONE_URL="https://x-access-token:${GITHUB_TOKEN}@github.com/$REPO.git"
+    fi
 
     git clone \
         --depth 1 \
         --filter=blob:none \
         --sparse \
         --branch "$BRANCH" \
-        "https://github.com/$REPO.git" \
+        "$CLONE_URL" \
         "$TMP_DIR" || {
-            echo "Error: Git clone failed!"
+            echo "- Error: Git clone failed!"
             rm -rf "$TMP_DIR"
             return 1
         }
@@ -53,14 +56,14 @@ GIT_SPARSE_DOWNLOAD() {
     }
 
     git sparse-checkout set "$FOLDER" || {
-        echo "- Error: Folder not found: $FOLDER"
+        echo "- Error: Folder not found in sparse checkout: $FOLDER"
         cd /
         rm -rf "$TMP_DIR"
         return 1
     }
 
     if [ ! -d "$TMP_DIR/$FOLDER" ]; then
-        echo "- Error: Folder not found: $FOLDER"
+        echo "- Error: Directory path does not exist: $FOLDER"
         cd /
         rm -rf "$TMP_DIR"
         return 1
@@ -73,9 +76,7 @@ GIT_SPARSE_DOWNLOAD() {
         return 1
     }
 
-    echo
-    echo "Copying files..."
-    echo
+    echo "Copying files to destination..."
 
     cp -a "$TMP_DIR/$FOLDER/." "$OUT_DIR/" || {
         echo "- Error: Failed to copy folder!"
@@ -85,9 +86,8 @@ GIT_SPARSE_DOWNLOAD() {
     }
 
     cd /
-
     rm -rf "$TMP_DIR"
 
-    echo "- Download completed"
+    echo "- Download completed successfully!"
     echo "- Location: $OUT_DIR"
 }
