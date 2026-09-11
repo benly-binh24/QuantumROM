@@ -111,7 +111,7 @@ jobs:
       - name: Validate STOCK_DEVICE - ${{ inputs.STOCK_DEVICE }}
         run: |
           REPO="benly-binh24/QuantumROM"
-          BRANCH="Devices"
+          BRANCH="main"
 
           source "$(pwd)/scripts/git_utils.sh"
 
