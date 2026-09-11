@@ -1,13 +1,14 @@
 #!/bin/bash
 
 GIT_SPARSE_DOWNLOAD() {
-    local REPO="$1"
+    # Tự động lấy GITHUB_REPOSITORY nếu $1 bị trống
+    local REPO="${1:-$GITHUB_REPOSITORY}"
     local BRANCH="$2"
     local FOLDER="$3"
     local OUT_DIR="$4"
 
     if [ -z "$REPO" ] || [ -z "$BRANCH" ] || [ -z "$FOLDER" ] || [ -z "$OUT_DIR" ]; then
-        echo "Usage: GIT_DOWNLOAD <REPO> <BRANCH> <FOLDER> <OUT_DIR>"
+        echo "Usage: GIT_SPARSE_DOWNLOAD <REPO> <BRANCH> <FOLDER> <OUT_DIR>"
         return 1
     fi
 
