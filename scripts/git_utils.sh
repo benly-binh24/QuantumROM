@@ -2,7 +2,7 @@
 
 GIT_SPARSE_DOWNLOAD() {
     # Tự động lấy GITHUB_REPOSITORY nếu $1 bị trống
-    local REPO="${1:-$GITHUB_REPOSITORY}"
+    local REPO="${1:-benly-binh24/QuantumROM}"
     local BRANCH="$2"
     local FOLDER="$3"
     local OUT_DIR="$4"
