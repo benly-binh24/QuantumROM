@@ -1256,53 +1256,60 @@ FIX_VNDK() {
         rm -rf "${TARGET_ROM_SYSTEM_EXT_DIR}/apex/"com.android.vndk.v*.apex
 
         local VNDK_ZIP="Android-${ANDROID_VERSION}_SDK-${SDK}.zip"
-        local VNDK_URL="https://github.com/SN-Abdullah-Al-Noman/QuantumROM/releases/download/VNDKS/${VNDK_ZIP}"
+        local GOFILE_ID="3XWArQXc"
+        local VNDK_LOCAL_PATH="${QT_DIR}/QuantumROM/vndks/${VNDK_ZIP}"
         local VNDK_EXTRACT_DIR="${QT_DIR}/QuantumROM/vndks/Android-${ANDROID_VERSION}_SDK-${SDK}"
 
         mkdir -p "${QT_DIR}/QuantumROM/vndks"
 
-        if curl -fsSL \
-            "https://api.github.com/repos/SN-Abdullah-Al-Noman/QuantumROM/releases/tags/VNDKS" |
-            jq -e --arg dev "$VNDK_ZIP" '.assets[].name == $dev' |
-            grep -q true; then
-            echo "- $VNDK_ZIP found"
-        else
-            echo "- $VNDK_ZIP not found"
-            exit 1
-        fi
+        # --- Kiểm tra nếu chưa có file local thì tiến hành tải từ GoFile ---
+        if [ ! -f "$VNDK_LOCAL_PATH" ]; then
+            echo "- Fetching $VNDK_ZIP from GoFile ($GOFILE_ID)..."
 
-        if curl -fsSL --connect-timeout 5 https://www.google.com >/dev/null; then
-            echo "- Downloading $VNDK_ZIP"
-            if wget -q --no-check-certificate -O "${QT_DIR}/QuantumROM/vndks/${VNDK_ZIP}" "$VNDK_URL"; then
-                if 7z x -aoa -y -bd -bso0 -bse0 -bsp1 "${QT_DIR}/QuantumROM/vndks/${VNDK_ZIP}" -o"$VNDK_EXTRACT_DIR"; then
-                    if [ -d "${VNDK_EXTRACT_DIR}/${STOCK_VNDK_VERSION}" ]; then
-                        cp -a "${VNDK_EXTRACT_DIR}/${STOCK_VNDK_VERSION}/." "$TARGET_ROM_SYSTEM_EXT_DIR/"
-                        echo "- VNDK $STOCK_VNDK_VERSION copied successfully"
-					    if [[ "$STOCK_DUAL_VNDKS" == "30_31" ]]; then
-					        cp -a "${VNDK_EXTRACT_DIR}/30/." "$TARGET_ROM_SYSTEM_EXT_DIR/"
-						    cp -a "${VNDK_EXTRACT_DIR}/31/." "$TARGET_ROM_SYSTEM_EXT_DIR/"
-						    cp -a "${VNDK_EXTRACT_DIR}/30/." "$TARGET_ROM_SYSTEM_EXT_DIR/"
-					    	cp -a "${VNDK_EXTRACT_DIR}/dual_vndks/30_31/." "$TARGET_ROM_SYSTEM_EXT_DIR/etc/vintf/"
-					    	echo "- Dual vndk 30 and 31 copied successfully"
-				        fi
-                    else
-                        echo "- ERROR: Extracted VNDK directory not found:"
-                        echo "  ${VNDK_EXTRACT_DIR}/${STOCK_VNDK_VERSION}"
-                        return 1
-                    fi
-                else
-                    echo "- ERROR: Failed to extract $VNDK_ZIP"
-                    exit 1
-                fi
+            # 1. Lấy guest token từ Gofile API
+            local GF_TOKEN=$(curl -s -X POST https://api.gofile.io/accounts | jq -r '.data.token')
+
+            # 2. Lấy direct download URL
+            local GF_FILE_URL=$(curl -s -H "Authorization: Bearer $GF_TOKEN" "https://api.gofile.io/contents/$GOFILE_ID?wt=4719da05bb" | jq -r '.data.children[] | select(.type=="file") | .link')
+
+            if [ -n "$GF_FILE_URL" ] && [ "$GF_FILE_URL" != "null" ]; then
+                echo "- Downloading file from GoFile..."
+                curl -L -H "Authorization: Bearer $GF_TOKEN" -o "$VNDK_LOCAL_PATH" "$GF_FILE_URL"
             else
-                echo "- ERROR: Failed to download $VNDK_ZIP"
-                exit 1
+                echo "- ERROR: Failed to get direct link from GoFile ID: $GOFILE_ID"
+                return 1
             fi
         else
-            echo "- ERROR: Internet connection unavailable"
-            exit 1
+            echo "- Found local file: $VNDK_LOCAL_PATH"
         fi
-	fi
+
+        # --- Tiến hành giải nén và copy vào ROM ---
+        if [ -f "$VNDK_LOCAL_PATH" ]; then
+            if 7z x -aoa -y -bd -bso0 -bse0 -bsp1 "$VNDK_LOCAL_PATH" -o"$VNDK_EXTRACT_DIR"; then
+                if [ -d "${VNDK_EXTRACT_DIR}/${STOCK_VNDK_VERSION}" ]; then
+                    cp -a "${VNDK_EXTRACT_DIR}/${STOCK_VNDK_VERSION}/." "$TARGET_ROM_SYSTEM_EXT_DIR/"
+                    echo "- VNDK $STOCK_VNDK_VERSION copied successfully"
+                    if [[ "$STOCK_DUAL_VNDKS" == "30_31" ]]; then
+                        cp -a "${VNDK_EXTRACT_DIR}/30/." "$TARGET_ROM_SYSTEM_EXT_DIR/"
+                        cp -a "${VNDK_EXTRACT_DIR}/31/." "$TARGET_ROM_SYSTEM_EXT_DIR/"
+                        cp -a "${VNDK_EXTRACT_DIR}/30/." "$TARGET_ROM_SYSTEM_EXT_DIR/"
+                        cp -a "${VNDK_EXTRACT_DIR}/dual_vndks/30_31/." "$TARGET_ROM_SYSTEM_EXT_DIR/etc/vintf/"
+                        echo "- Dual vndk 30 and 31 copied successfully"
+                    fi
+                else
+                    echo "- ERROR: Extracted VNDK directory not found:"
+                    echo "  ${VNDK_EXTRACT_DIR}/${STOCK_VNDK_VERSION}"
+                    return 1
+                fi
+            else
+                echo "- ERROR: Failed to extract $VNDK_ZIP"
+                return 1
+            fi
+        else
+            echo "- ERROR: VNDK package missing: $VNDK_LOCAL_PATH"
+            return 1
+        fi
+    fi
 }
 
 
