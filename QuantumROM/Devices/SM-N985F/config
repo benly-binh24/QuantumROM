@@ -1,0 +1,15 @@
+STOCK_HAS_AB_SLOT=FALSE
+STOCK_VNDK_VERSION=30
+STOCK_DEVICE_CHIPSET=Exynos
+STOCK_HAS_ESIM_SUPPORT=FALSE
+STOCK_HAS_SEPARATE_SYSTEM_EXT=FALSE
+STOCK_DVFS_FILENAME=dvfs_policy_exynos990_xx
+STOCK_SIOP_POLICY_FILENAME=siop_c2s_exynos990
+STOCK_DEVICE_CPU_ABILIST=arm64-v8a,armeabi-v7a,armeabi
+
+ro.odm.build.version.sdk=30
+ro.product.odm.device=c2s
+ro.product.odm.model=SM-N985F
+ro.product.odm.name=c2sxx
+ro.vendor.qti.va_odm.support=1
+
