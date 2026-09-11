@@ -109,22 +109,29 @@ jobs:
           echo "COMPRESS_IMG_TO_XZ=${{ inputs.COMPRESS_IMG_TO_XZ }}" | tee -a "$GITHUB_ENV"
  
       - name: Validate STOCK_DEVICE - ${{ inputs.STOCK_DEVICE }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           REPO="benly-binh24/QuantumROM"
-          BRANCH="main"
+          BRANCH="Devices"
 
           source "$(pwd)/scripts/git_utils.sh"
 
           if [ "$STOCK_DEVICE" != "None" ]; then
+              # Thêm header Authorization để tránh bị Rate Limit / 404 nếu repo Private
+              # và sửa URL trỏ đúng vào thư mục QuantumROM/Devices/$STOCK_DEVICE
               if ! curl -fsSL -H "Accept: application/vnd.github+json" \
-                  "https://api.github.com/repos/$REPO/contents/$STOCK_DEVICE?ref=$BRANCH" >/dev/null; then
+                  -H "Authorization: Bearer ${GITHUB_TOKEN:-$GIT_TOKEN}" \
+                  "https://api.github.com/repos/$REPO/contents/QuantumROM/Devices/$STOCK_DEVICE?ref=$BRANCH" >/dev/null; then
 
-                echo "❌ Unsupported: Device '$STOCK_DEVICE' not found in $REPO/$BRANCH"
+                echo "❌ Unsupported: Device '$STOCK_DEVICE' not found in $REPO/$BRANCH (path: QuantumROM/Devices/$STOCK_DEVICE)"
                 exit 1
               fi
 
               echo "✅ Device supported: $STOCK_DEVICE"
-              GIT_SPARSE_DOWNLOAD "benly-binh24/QuantumROM" "Devices" "$STOCK_DEVICE" \
+              
+              # Tải đúng folder QuantumROM/Devices/$STOCK_DEVICE từ nhánh Devices
+              GIT_SPARSE_DOWNLOAD "$REPO" "$BRANCH" "QuantumROM/Devices/$STOCK_DEVICE" \
                   "$(pwd)/QuantumROM/Devices/$STOCK_DEVICE"
           else
               echo "ℹ️ STOCK_DEVICE is set to None."
